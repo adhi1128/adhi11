@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP Chatbot & Text Analysis Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for clean UI */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 9999px;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: rgba(75, 85, 99, 0.5);
+        }
+        /* Custom gauge animations */
+        .gauge-bar {
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen flex flex-col h-screen overflow-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/60 px-4 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <i data-lucide="bot" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                    NLP Engine Chatbot
+                    <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">v2.4 Live</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Interactive Stemming, Lemmatization & VADER Sentiment Analysis</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Example Preset Quick Prompts Dropdown -->
+            <div class="relative hidden md:block">
+                <button id="presetBtn" onclick="togglePresets()" class="flex items-center gap-2 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>Preset Messages</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+                </button>
+                <div id="presetMenu" class="hidden absolute right-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 p-1">
+                    <div class="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Try an Example</div>
+                    <button onclick="usePreset('I am loving these new running shoes! They are extremely comfortable and stylish.')" class="w-full text-left text-xs p-2 hover:bg-slate-700/60 rounded-lg text-slate-300 transition-colors flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Positive Sentiment
+                    </button>
+                    <button onclick="usePreset('This terrible service made me so angry, completely disappointing experience!')" class="w-full text-left text-xs p-2 hover:bg-slate-700/60 rounded-lg text-slate-300 transition-colors flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-rose-400"></span> Negative Sentiment
+                    </button>
+                    <button onclick="usePreset('The package was delivered at 3 PM according to the tracking system schedule.')" class="w-full text-left text-xs p-2 hover:bg-slate-700/60 rounded-lg text-slate-300 transition-colors flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-slate-400"></span> Neutral Statement
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inspect JSON Drawer Toggle -->
+            <button onclick="toggleJsonModal()" class="flex items-center gap-1.5 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="code" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span class="hidden sm:inline">Inspect</span> JSON
+            </button>
+
+            <!-- Reset Chat -->
+            <button onclick="clearChat()" title="Reset Conversation" class="p-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Split Panel -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+        <!-- LEFT PANEL: Chat Window -->
+        <main class="flex-1 flex flex-col bg-slate-900 border-r border-slate-800 overflow-hidden relative">
+            
+            <!-- Quick Chips Bar for Mobile/Quick Access -->
+            <div class="bg-slate-800/40 border-b border-slate-800/60 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+                <span class="text-[11px] font-medium text-slate-400 shrink-0">Try:</span>
+                <button onclick="usePreset('I love learning natural language processing!')" class="shrink-0 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/80 transition-colors">
+                    I love NLP!
+                </button>
+                <button onclick="usePreset('The food was cold, noisy restaurant, and slow service.')" class="shrink-0 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/80 transition-colors">
+                    Bad Restaurant Review
+                </button>
+                <button onclick="usePreset('The meeting starts tomorrow at 9:00 AM.')" class="shrink-0 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/80 transition-colors">
+                    Neutral Schedule Info
+                </button>
+            </div>
+
+            <!-- Messages Stream Container -->
+            <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Welcome Bot Message -->
+                <div class="flex gap-3 max-w-2xl">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shrink-0 text-white shadow-md">
+                        <i data-lucide="bot" class="w-4 h-4"></i>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-300">NLP Bot</span>
+                            <span class="text-[10px] text-slate-500">System</span>
+                        </div>
+                        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-200 shadow-sm leading-relaxed">
+                            Hello! I am an interactive NLP chatbot equipped with live text processing abilities. 
+                            Send any phrase, and I will analyze its <strong class="text-blue-400">Sentiment</strong>, perform <strong class="text-indigo-400">Lemmatization</strong>, and compute <strong class="text-teal-400">Stemming</strong> in real-time!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Box Container -->
+            <div class="p-3 bg-slate-800/80 border-t border-slate-800 shrink-0">
+                <form id="chatForm" onsubmit="handleChatSubmit(event)" class="flex gap-2">
+                    <input 
+                        type="text" 
+                        id="userInput" 
+                        placeholder="Type a message to analyze (e.g. 'I was running faster yesterday...')" 
+                        class="flex-1 bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all"
+                        autocomplete="off"
+                    />
+                    <button 
+                        type="submit" 
+                        class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-600/20"
+                    >
+                        <span>Send</span>
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL: Interactive NLP Inspector Drawer -->
+        <aside class="w-full md:w-[420px] lg:w-[480px] bg-slate-950/70 border-l border-slate-800 flex flex-col h-1/2 md:h-full overflow-hidden shrink-0">
+            <!-- Inspector Header -->
+            <div class="p-3.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4 text-blue-400"></i>
+                    <h2 class="font-semibold text-sm text-slate-200">NLP Breakdown Inspector</h2>
+                </div>
+                <span id="activeMessageTag" class="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-md">
+                    No input yet
+                </span>
+            </div>
+
+            <!-- Inspector Body Scrollable -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+                <!-- 1. SENTIMENT ANALYSIS CARD -->
+                <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="smile" class="w-4 h-4 text-emerald-400"></i>
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Sentiment Analysis (VADER)</h3>
+                        </div>
+                        <span id="sentimentBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                            Neutral
+                        </span>
+                    </div>
+
+                    <!-- Compound Score Bar -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">Compound Score</span>
+                            <span id="compoundVal" class="font-mono font-medium text-slate-200">0.000</span>
+                        </div>
+                        <div class="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700/60">
+                            <!-- Center mark for 0 -->
+                            <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-600 z-10"></div>
+                            <div id="compoundGauge" class="gauge-bar h-full bg-blue-500 rounded-full w-1/2 transition-all duration-500"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                            <span>-1.0 (Negative)</span>
+                            <span>0.0</span>
+                            <span>+1.0 (Positive)</span>
+                        </div>
+                    </div>
+
+                    <!-- Sentiment Breakdown Percentages -->
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                        <div class="bg-slate-800/60 border border-slate-800 rounded-lg p-2 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase">Positive</div>
+                            <div id="posScore" class="text-sm font-semibold text-emerald-400 font-mono">0.0%</div>
+                        </div>
+                        <div class="bg-slate-800/60 border border-slate-800 rounded-lg p-2 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase">Neutral</div>
+                            <div id="neuScore" class="text-sm font-semibold text-slate-300 font-mono">100%</div>
+                        </div>
+                        <div class="bg-slate-800/60 border border-slate-800 rounded-lg p-2 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase">Negative</div>
+                            <div id="negScore" class="text-sm font-semibold text-rose-400 font-mono">0.0%</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. TOKENIZATION VISUALIZER -->
+                <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
+                    <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i data-lucide="layers" class="w-4 h-4 text-purple-400"></i>
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Tokenization</h3>
+                    </div>
+                    <div id="tokensContainer" class="flex flex-wrap gap-1.5 min-h-[40px] items-center">
+                        <span class="text-xs text-slate-500 italic">Send a message to see token chips...</span>
+                    </div>
+                </section>
+
+                <!-- 3. STEMMING VS LEMMATIZATION TABLE -->
+                <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="git-compare" class="w-4 h-4 text-teal-400"></i>
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Stemming vs Lemmatization</h3>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-800 text-[11px]">
+                                    <th class="pb-2 font-medium">Original Token</th>
+                                    <th class="pb-2 font-medium text-amber-400">Stemmed (Porter)</th>
+                                    <th class="pb-2 font-medium text-indigo-400">Lemmatized</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comparisonTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                                <tr>
+                                    <td colspan="3" class="py-3 text-slate-500 italic text-sans font-normal text-center">
+                                        No word comparison available.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </div>
+        </aside>
+    </div>
+
+    <!-- RAW JSON INSPECTOR MODAL -->
+    <div id="jsonModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-json" class="w-5 h-5 text-indigo-400"></i>
+                    <h3 class="font-bold text-slate-200">Raw NLP Pipeline Payload</h3>
+                </div>
+                <button onclick="toggleJsonModal()" class="text-slate-400 hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto bg-slate-950 font-mono text-xs text-emerald-400">
+                <pre id="jsonContent">// Pipeline output will appear here after sending a message.</pre>
+            </div>
+            <div class="p-3 border-t border-slate-800 flex justify-end bg-slate-900">
+                <button onclick="copyJsonToClipboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 transition-colors">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copy JSON</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs shadow-xl opacity-0 transition-opacity pointer-events-none z-50 flex items-center gap-2">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toastText">Copied to clipboard</span>
+    </div>
+
+    <!-- JS Logic Implementations -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // State Store
+        let lastNlpResult = null;
+
+        // --- PORTER STEMMER IMPLEMENTATION (Client-side JS) ---
+        function porterStemmer(word) {
+            word = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (word.length < 3) return word;
+
+            // Simple rules for Porter Stemmer emulation
+            const step1a = [
+                { match: /sses$/, replace: 'ss' },
+                { match: /ies$/, replace: 'i' },
+                { match: /ss$/, replace: 'ss' },
+                { match: /s$/, replace: '' }
+            ];
+
+            for (let rule of step1a) {
+                if (rule.match.test(word)) {
+                    word = word.replace(rule.match, rule.replace);
+                    break;
+                }
+            }
+
+            if (/eed$/.test(word)) {
+                if (word.length > 5) word = word.replace(/eed$/, 'ee');
+            } else if (/(ed|ing)$/.test(word)) {
+                const stem = word.replace(/(ed|ing)$/, '');
+                if (/[aeiouy]/.test(stem)) {
+                    word = stem;
+                    if (/at$/.test(word)) word += 'e';
+                    else if (/bl$/.test(word)) word += 'e';
+                    else if (/iz$/.test(word)) word += 'e';
+                    else if (/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/.test(word)) word = word.substring(0, word.length - 1);
+                }
+            }
+
+            // Step 2 & 3 suffix rules
+            const suffixes = [
+                { match: /ational$/, replace: 'ate' },
+                { match: /tional$/, replace: 'tion' },
+                { match: /enci$/, replace: 'ence' },
+                { match: /anci$/, replace: 'ance' },
+                { match: /izer$/, replace: 'ize' },
+                { match: /bli$/, replace: 'ble' },
+                { match: /alli$/, replace: 'al' },
+                { match: /entli$/, replace: 'ent' },
+                { match: /eli$/, replace: 'e' },
+                { match: /ousli$/, replace: 'ous' },
+                { match: /ization$/, replace: 'ize' },
+                { match: /ation$/, replace: 'ate' },
+                { match: /ator$/, replace: 'ate' },
+                { match: /alism$/, replace: 'al' },
+                { match: /iveness$/, replace: 'ive' },
+                { match: /fulness$/, replace: 'ful' },
+                { match: /ousness$/, replace: 'ous' },
+                { match: /aliti$/, replace: 'al' },
+                { match: /iviti$/, replace: 'ive' },
+                { match: /biliti$/, replace: 'ble' },
+                { match: /ful$/, replace: '' },
+                { match: /ly$/, replace: '' },
+                { match: /ing$/, replace: '' }
+            ];
+
+            for (let rule of suffixes) {
+                if (rule.match.test(word) && word.length > 5) {
+                    word = word.replace(rule.match, rule.replace);
+                    break;
+                }
+            }
+
+            return word;
+        }
+
+        // --- LEMMATIZER IMPLEMENTATION (Rule/Dictionary based) ---
+        const lemmaDict = {
+            'am': 'be', 'is': 'be', 'are': 'be', 'was': 'be', 'were': 'be', 'been': 'be', 'being': 'be',
+            'has': 'have', 'had': 'have', 'having': 'have',
+            'does': 'do', 'did': 'do', 'done': 'do', 'doing': 'do',
+            'loving': 'love', 'loved': 'love', 'loves': 'love',
+            'running': 'run', 'ran': 'run', 'runs': 'run',
+            'shoes': 'shoe', 'feet': 'foot', 'teeth': 'tooth', 'geese': 'goose', 'mice': 'mouse',
+            'children': 'child', 'people': 'person', 'men': 'man', 'women': 'woman',
+            'better': 'good', 'best': 'good', 'worse': 'bad', 'worst': 'bad',
+            'eaten': 'eat', 'eating': 'eat', 'ate': 'eat',
+            'going': 'go', 'went': 'go', 'gone': 'go',
+            'made': 'make', 'making': 'make',
+            'disappointing': 'disappoint', 'disappointed': 'disappoint',
+            'faster': 'fast', 'fastest': 'fast',
+            'bought': 'buy', 'buying': 'buy'
+        };
+
+        function lemmatizeWord(word) {
+            const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (lemmaDict[clean]) return lemmaDict[clean];
+            
+            // Standard morphological reduction rules
+            if (clean.endsWith('ies') && clean.length > 4) return clean.slice(0, -3) + 'y';
+            if (clean.endsWith('es') && clean.length > 4) return clean.slice(0, -2);
+            if (clean.endsWith('s') && !clean.endsWith('ss') && clean.length > 3) return clean.slice(0, -1);
+            if (clean.endsWith('ing') && clean.length > 5) {
+                const base = clean.slice(0, -3);
+                if (base.endsWith('m') || base.endsWith('n') || base.endsWith('t') || base.endsWith('p')) {
+                    if (base[base.length - 1] === base[base.length - 2]) {
+                        return base.slice(0, -1);
+                    }
+                }
+                return base + 'e';
+            }
+            if (clean.endsWith('ed') && clean.length > 4) return clean.slice(0, -2);
+
+            return clean || word;
+        }
+
+        // --- VADER SENTIMENT LEXICON (Subset Rule Evaluator) ---
+        const sentimentLexicon = {
+            'love': 3.2, 'loving': 3.4, 'great': 3.1, 'excellent': 3.5, 'amazing': 3.6,
+            'comfortable': 2.8, 'good': 1.9, 'best': 3.2, 'awesome': 3.1, 'happy': 2.7,
+            'stylish': 2.2, 'like': 1.5, 'wonderful': 3.2, 'fantastic': 3.4,
+            'bad': -2.5, 'terrible': -3.4, 'horrible': -3.2, 'disappointing': -2.8,
+            'angry': -2.3, 'disappointed': -2.5, 'worst': -3.1, 'hate': -2.7,
+            'cold': -1.2, 'noisy': -1.4, 'slow': -1.5, 'ugly': -2.0, 'fail': -2.2
+        };
+
+        const intensifiers = {
+            'extremely': 1.5, 'very': 1.3, 'so': 1.2, 'super': 1.4, 'really': 1.2, 'completely': 1.4
+        };
+
+        const negations = ['not', 'never', 'no', "n't", 'without'];
+
+        function analyzeSentiment(tokens) {
+            let totalScore = 0;
+            let posCount = 0;
+            let negCount = 0;
+            let neuCount = 0;
+
+            for (let i = 0; i < tokens.length; i++) {
+                let token = tokens[i].toLowerCase().replace(/[^a-z]/g, '');
+                if (!token) continue;
+
+                let score = sentimentLexicon[token] || 0;
+                
+                // Check previous word for intensifier or negation
+                if (score !== 0 && i > 0) {
+                    let prevToken = tokens[i - 1].toLowerCase().replace(/[^a-z]/g, '');
+                    if (intensifiers[prevToken]) {
+                        score *= intensifiers[prevToken];
+                    }
+                    if (negations.includes(prevToken)) {
+                        score *= -1.2;
+                    }
+                }
+
+                if (score > 0) posCount++;
+                else if (score < 0) negCount++;
+                else neuCount++;
+
+                totalScore += score;
+            }
+
+            // Calculate Compound Score (-1 to 1 normalized)
+            const normScore = totalScore / Math.sqrt(totalScore * totalScore + 15);
+            const compound = Math.max(-1, Math.min(1, normScore));
+
+            const totalWords = Math.max(1, tokens.length);
+            const posPct = Math.min(100, Math.round((posCount / totalWords) * 100));
+            const negPct = Math.min(100, Math.round((negCount / totalWords) * 100));
+            const neuPct = Math.max(0, 100 - posPct - negPct);
+
+            let label = "Neutral";
+            let botReply = "I acknowledge your statement. Let me know if you have more questions!";
+
+            if (compound >= 0.1) {
+                label = "Positive";
+                botReply = "I'm delighted to hear that! It sounds like a great experience. How else can I assist you?";
+            } else if (compound <= -0.1) {
+                label = "Negative";
+                botReply = "I'm deeply sorry to hear about that experience. Please let me know how I can help resolve this issue!";
+            }
+
+            return {
+                compound: parseFloat(compound.toFixed(3)),
+                posScore: posPct,
+                negScore: negPct,
+                neuScore: neuPct,
+                label: label,
+                reply: botReply
+            };
+        }
+
+        // --- FULL NLP PIPELINE ENGINE ---
+        function runNlpPipeline(text) {
+            // 1. Tokenization
+            const rawTokens = text.trim().split(/\s+/);
+            const cleanTokens = text.match(/\b\w+\b|[^\w\s]/g) || [text];
+
+            // 2. Stemming & Lemmatization
+            const wordAnalysis = cleanTokens.map(token => {
+                const isWord = /[a border-slate-700-Za-z]/.test(token);
+                return {
+                    original: token,
+                    stemmed: isWord ? porterStemmer(token) : token,
+                    lemmatized: isWord ? lemmatizeWord(token) : token
+                };
+            });
+
+            // 3. Sentiment Analysis
+            const sentiment = analyzeSentiment(cleanTokens);
+
+            return {
+                timestamp: new Date().toISOString(),
+                inputText: text,
+                tokens: cleanTokens,
+                wordAnalysis: wordAnalysis,
+                sentiment: sentiment
+            };
+        }
+
+        // --- UI HANDLERS ---
+        function handleChatSubmit(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('userInput');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            // Append User Message
+            appendUserMessage(text);
+            inputEl.value = '';
+
+            // Run Pipeline
+            const result = runNlpPipeline(text);
+            lastNlpResult = result;
+
+            // Render Inspector UI
+            renderInspector(result);
+
+            // Bot Response Delay
+            setTimeout(() => {
+                appendBotMessage(result.sentiment.reply, result.sentiment.label);
+            }, 300);
+        }
+
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgHtml = `
+                <div class="flex gap-3 justify-end max-w-2xl ml-auto">
+                    <div class="space-y-1.5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <span class="text-[10px] text-slate-500">Just now</span>
+                            <span class="text-xs font-semibold text-slate-300">You</span>
+                        </div>
+                        <div class="bg-blue-600 text-white rounded-2xl rounded-tr-none p-3.5 text-sm shadow-md leading-relaxed text-left">
+                            ${escapeHtml(text)}
+                        </div>
+                    </div>
+                    <div class="w-8 h-8 rounded-xl bg-slate-700 border border-slate-600 flex items-center justify-center shrink-0 text-slate-200">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            lucide.createIcons();
+        }
+
+        function appendBotMessage(text, sentimentLabel) {
+            const chatBox = document.getElementById('chatBox');
+            let labelBadge = '';
+            
+            if (sentimentLabel === 'Positive') {
+                labelBadge = `<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Positive Tone</span>`;
+            } else if (sentimentLabel === 'Negative') {
+                labelBadge = `<span class="text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-medium">Negative Tone</span>`;
+            } else {
+                labelBadge = `<span class="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-medium">Neutral</span>`;
+            }
+
+            const msgHtml = `
+                <div class="flex gap-3 max-w-2xl">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shrink-0 text-white shadow-md">
+                        <i data-lucide="bot" class="w-4 h-4"></i>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-300">NLP Bot</span>
+                            ${labelBadge}
+                        </div>
+                        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-200 shadow-sm leading-relaxed">
+                            ${escapeHtml(text)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            lucide.createIcons();
+        }
+
+        function renderInspector(result) {
+            // Update Active Input Tag
+            document.getElementById('activeMessageTag').innerText = `"${result.inputText.substring(0, 20)}${result.inputText.length > 20 ? '...' : ''}"`;
+
+            // 1. Render Sentiment
+            const badge = document.getElementById('sentimentBadge');
+            badge.innerText = result.sentiment.label;
+            
+            if (result.sentiment.label === 'Positive') {
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            } else if (result.sentiment.label === 'Negative') {
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            } else {
+                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700";
+            }
+
+            document.getElementById('compoundVal').innerText = result.sentiment.compound;
+            
+            // Gauge Bar calculation: compound is -1 to 1. Map to 0% - 100%
+            const gaugePct = ((result.sentiment.compound + 1) / 2) * 100;
+            const gaugeEl = document.getElementById('compoundGauge');
+            gaugeEl.style.width = `${gaugePct}%`;
+            
+            if (result.sentiment.compound > 0.05) gaugeEl.className = "gauge-bar h-full bg-emerald-500 rounded-full";
+            else if (result.sentiment.compound < -0.05) gaugeEl.className = "gauge-bar h-full bg-rose-500 rounded-full";
+            else gaugeEl.className = "gauge-bar h-full bg-blue-500 rounded-full";
+
+            document.getElementById('posScore').innerText = `${result.sentiment.posScore}%`;
+            document.getElementById('neuScore').innerText = `${result.sentiment.neuScore}%`;
+            document.getElementById('negScore').innerText = `${result.sentiment.negScore}%`;
+
+            // 2. Render Tokens
+            const tokensContainer = document.getElementById('tokensContainer');
+            tokensContainer.innerHTML = result.tokens.map(token => `
+                <span class="text-xs bg-slate-800 hover:bg-slate-700/80 text-blue-300 border border-slate-700/80 px-2.5 py-1 rounded-lg font-mono flex items-center gap-1 transition-all">
+                    ${escapeHtml(token)}
+                </span>
+            `).join('');
+
+            // 3. Render Stemming vs Lemmatization Table
+            const tbody = document.getElementById('comparisonTableBody');
+            tbody.innerHTML = result.wordAnalysis.map(item => `
+                <tr class="hover:bg-slate-800/40 transition-colors">
+                    <td class="py-2 text-slate-200 font-sans">${escapeHtml(item.original)}</td>
+                    <td class="py-2 text-amber-400 font-mono">${escapeHtml(item.stemmed)}</td>
+                    <td class="py-2 text-indigo-400 font-mono">${escapeHtml(item.lemmatized)}</td>
+                </tr>
+            `).join('');
+
+            // Update Raw JSON View
+            document.getElementById('jsonContent').innerText = JSON.stringify(result, null, 2);
+        }
+
+        function usePreset(text) {
+            document.getElementById('userInput').value = text;
+            document.getElementById('presetMenu').classList.add('hidden');
+            document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+        }
+
+        function togglePresets() {
+            document.getElementById('presetMenu').classList.toggle('hidden');
+        }
+
+        function toggleJsonModal() {
+            document.getElementById('jsonModal').classList.toggle('hidden');
+        }
+
+        function copyJsonToClipboard() {
+            const content = document.getElementById('jsonContent').innerText;
+            
+            // Clipboard API fallback
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(content);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = content;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            
+            showToast('JSON copied to clipboard!');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastText').innerText = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2000);
+        }
+
+        function clearChat() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = `
+                <div class="flex gap-3 max-w-2xl">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shrink-0 text-white shadow-md">
+                        <i data-lucide="bot" class="w-4 h-4"></i>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-300">NLP Bot</span>
+                            <span class="text-[10px] text-slate-500">System</span>
+                        </div>
+                        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-200 shadow-sm leading-relaxed">
+                            Chat reset! Send a message to re-analyze text.
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            showToast('Chat history cleared.');
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&raw_gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Close dropdowns on outside click
+        window.addEventListener('click', (e) => {
+            const presetBtn = document.getElementById('presetBtn');
+            const presetMenu = document.getElementById('presetMenu');
+            if (presetBtn && !presetBtn.contains(e.target) && !presetMenu.contains(e.target)) {
+                presetMenu.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
